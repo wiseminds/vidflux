@@ -7,12 +7,12 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart';
 
-import 'src/app_lifecycle_observer.dart';
-import 'src/kvideo_controls.dart';
+
+import 'src/video_controls.dart';
 import 'src/playpause_button.dart';
 import 'src/screen_manager.dart';
 
@@ -33,7 +33,14 @@ class VidFlux extends StatefulWidget {
   /// a widget to show when the video is in error state
   final Widget loadingIndicator;
 
+/// number of times to re initialize the video when a playback error occurs
   final int retry;
+
+/// if true the video automatically starts playing once initialized
+  final bool autoPlay;
+
+
+  final List<DeviceOrientation> fullScreenOrientations;
 
   VidFlux({
     Key key,
@@ -41,28 +48,23 @@ class VidFlux extends StatefulWidget {
     this.isFullscreen = false,
     this.errorWidget,
     this.loadingIndicator,
-    this.retry = 5,
+    this.retry = 5, this.autoPlay = false, this.fullScreenOrientations,
   })  : _touchDetector =
             TouchDetector(videoPlayerController, isFullscreen ?? false),
         super(key: key);
   @override
-  _KVideoWidgetState createState() => _KVideoWidgetState();
+  VidFluxState createState() => VidFluxState();
 }
 
-class _KVideoWidgetState extends State<VidFlux>
-// with WidgetsBindingObserver
-{
+class VidFluxState extends State<VidFlux>{
   VideoPlayerController _videoPlayerController;
   bool isLoading = true;
   bool isInitializing = true;
   int retryInit;
   StateNotifier _stateNotifier;
-  AppLifeCycleObserver _lifeCycleObserver;
-  bool _wasPlayingBeforePause = false;
+
   void _errorListener() {
     if (widget.videoPlayerController.value.hasError) {
-      // _stateNotifier.setLoading(false);
-      widget._touchDetector.toggleControl(false);
       if (IS_DEBUG_MODE)
         print(
             'error listener. $retryInit   .${_videoPlayerController.value?.errorDescription}');
@@ -75,7 +77,7 @@ class _KVideoWidgetState extends State<VidFlux>
           _stateNotifier.setLoading(false);
           _stateNotifier.setHasError(
               true, _videoPlayerController.value?.errorDescription);
-          retryInit = 5;
+          retryInit = widget.retry;
           setState(() {});
         } else
           initController();
@@ -83,61 +85,24 @@ class _KVideoWidgetState extends State<VidFlux>
         _stateNotifier.setLoading(false);
         _stateNotifier.setHasError(
             true, _videoPlayerController.value?.errorDescription);
-        retryInit = 5;
+        retryInit = widget.retry;
         setState(() {});
       }
     }
-    // else if (_stateNotifier._hasError)
-    //   _stateNotifier.setHasError(
-    //     false,
-    //   );
   }
 
-  void _screenListener(Timer t) async {
-    if (_videoPlayerController?.value?.isPlaying ?? false) {
-      if (await ScreenManager().isKeptOn()) return;
-      await ScreenManager().keepOn(true);
-    } else if (await ScreenManager().isKeptOn())
-      await ScreenManager().keepOn(false);
-  }
 
-  static const VIDEOSCREEN = 1000;
   @override
   void initState() {
     retryInit = widget.retry;
     _videoPlayerController = widget.videoPlayerController;
-    // _lifeCycleObserver =
-    // Provider.of<AppLifeCycleObserver>(context, listen: false) ??
-    //         AppLifeCycleObserver();
-    // _lifeCycleObserver.addCallbacks([
-    //   CallbackItem(_onPause, VIDEOSCREEN, AppLifecycleState.paused),
-    //   CallbackItem(_onResume, VIDEOSCREEN, AppLifecycleState.resumed)
-    // ]);
-    Timer.periodic(Duration(seconds: 5), _screenListener)..tick;
     _stateNotifier = StateNotifier();
     if (!_videoPlayerController.value.initialized) initController();
-
     _videoPlayerController.addListener(_errorListener);
-    // if (widget.isFullscreen &&
-    //     (_videoPlayerController?.value?.initialized ?? false))
-    _videoPlayerController.play();
+    if(widget.autoPlay || widget._touchDetector.isFullScreen) _videoPlayerController.play();
     super.initState();
   }
 
-  void _onPause() {
-    _wasPlayingBeforePause = _videoPlayerController.value.isPlaying;
-    print('onpause called $_wasPlayingBeforePause');
-    if (widget.videoPlayerController.value.isPlaying)
-      _videoPlayerController?.pause();
-  }
-
-  void _onResume() {
-    print('onresume called $_wasPlayingBeforePause');
-    if (widget.videoPlayerController != null) {
-      if (!widget.videoPlayerController.value.initialized) initController();
-    }
-    if (_wasPlayingBeforePause) _videoPlayerController?.play();
-  }
 
   void initController() {
     _stateNotifier.setLoading(true);
@@ -163,7 +128,6 @@ class _KVideoWidgetState extends State<VidFlux>
   @override
   void dispose() {
     _videoPlayerController.removeListener(_errorListener);
-    _lifeCycleObserver?.removeCallbacks(VIDEOSCREEN);
     ScreenManager().keepOn(false);
     super.dispose();
   }
@@ -171,12 +135,12 @@ class _KVideoWidgetState extends State<VidFlux>
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-        onTap: () {
-          if (_videoPlayerController.value.isPlaying)
+        onTap: () {print('touch gesture detected');
+          // if (_videoPlayerController.value.isPlaying)
             widget._touchDetector
-                .toggleControl(!widget._touchDetector._showControls);
-          else if (!widget._touchDetector._showControls)
-            widget._touchDetector.toggleControl(true);
+                .toggleControl();
+          // else if (!widget._touchDetector._showControls)
+          //   widget._touchDetector.toggleControl(true);
         },
         // onHorizontalDragStart: (details) {
         //   _stateNotifier.setTakeAction(false);
@@ -217,6 +181,7 @@ class _KVideoWidgetState extends State<VidFlux>
                   child: Stack(
                     alignment: Alignment.center,
                     children: <Widget>[
+                      Builder(builder: (context)=> ScreenManagerWidget(_videoPlayerController)),
                       _videoPlayerController.value.initialized
                           ? VideoPlayer(_videoPlayerController)
                           : Container(
@@ -231,10 +196,11 @@ class _KVideoWidgetState extends State<VidFlux>
                         Container(
                             margin: EdgeInsets.only(bottom: 10),
                             alignment: Alignment.bottomCenter,
-                            child: KVideoControls(_videoPlayerController,
-                                playerKey: widget.key,
+                            child: VideoControls(_videoPlayerController,
+                                playerKey: widget.key, fullScreenOrientations: widget.fullScreenOrientations,
                                 isFullScreen: widget.isFullscreen)),
-                      ErrorWidget(initController: initController),
+                     widget.errorWidget ?? ErrorWidget(initController: initController),
+                      // VideoProgressIndicator(_videoPlayerController, allowScrubbing: true,)
                     ],
                   )),
             )));
@@ -361,7 +327,7 @@ class _LoadinIndicatorState extends State<LoadinIndicator> {
 }
 
 class ErrorWidget extends StatefulWidget {
-  final Function initController;
+  final VoidCallback initController;
 
   const ErrorWidget({Key key, this.initController}) : super(key: key);
   @override
@@ -428,21 +394,8 @@ class TouchDetector with ChangeNotifier {
   bool get isFullScreen => _isFullScreen;
 
   set fullScreen(bool value) => _isFullScreen = value;
-  bool _inProgress = false;
-  void toggleControl(bool value) {
-    if (value) {
-      _showControls = value;
-      _inProgress = false;
+  void toggleControl() {
+      _showControls = !_showControls;
       notifyListeners();
-    } else if (!_inProgress) {
-      _inProgress = true;
-      Future.delayed(Duration(seconds: 5), () {
-        // if (_showControls == true && _playerController.value.isPlaying) {
-        _showControls = value;
-        _inProgress = false;
-        notifyListeners();
-        // }
-      });
-    }
   }
 }
