@@ -1,10 +1,6 @@
 import 'dart:async';
 
-///Ekeh Wisdom ekeh.wisdom@gmail.com
-///c2019
-///Sun Nov 24 2019
 import 'package:flutter/material.dart';
-import 'package:rxdart/rxdart.dart';
 import 'package:video_player/video_player.dart';
 
 /// A widget to display video progress bar.
@@ -25,55 +21,61 @@ class ProgressBar extends StatefulWidget {
   }
 }
 
-class _ProgressBarState extends State<ProgressBar> {
+class _ProgressBarState extends State<ProgressBar> with WidgetsBindingObserver {
   VideoPlayerController _controller;
 
   Offset _touchPoint = Offset.zero;
 
   double _playedValue = 0.0;
   double _bufferedValue = 0.0;
-
+  Timer _bufferTimer;
   bool _touchDown = false;
 
-  final BehaviorSubject<double> _dragPositionSubject =
-      BehaviorSubject.seeded(0.0);
-  Timer _bufferTimer;
   @override
   void initState() {
     _controller = widget.controller;
     super.initState();
-    _controller.addListener(_positionListener);
-    _bufferTimer = Timer.periodic(Duration(seconds: 2), _getBuffered);
-    _bufferTimer.tick;
-    // WidgetsBinding.instance.addObserver(this);
+    _controller.addListener(positionListener);
+    _initializeTimer();
+    WidgetsBinding.instance.addObserver(this);
   }
+
+  void _initializeTimer() =>
+      _bufferTimer = Timer.periodic(Duration(seconds: 5), _getBuffered)..tick;
 
   @override
   void dispose() {
-    _controller?.removeListener(_positionListener);
+    _controller?.removeListener(positionListener);
     _bufferTimer.cancel();
+     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
   @override
-  void didUpdateWidget(ProgressBar oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    oldWidget.controller.removeListener(_positionListener);
-    widget.controller.addListener(_positionListener);
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    switch (state) {
+      case AppLifecycleState.resumed:
+        widget.controller.addListener(positionListener);
+        _initializeTimer();
+        break;
+      case AppLifecycleState.detached:
+      case AppLifecycleState.paused:
+      case AppLifecycleState.inactive:
+        widget.controller.removeListener(positionListener);
+        _bufferTimer.cancel();
+        break;
+      default:
+        break;
+    }
   }
 
-  @override
-  void deactivate() {
-    super.deactivate();
-    widget.controller.removeListener(_positionListener);
-  }
-
-  void _positionListener() {
+  void positionListener() {
     int _totalDuration = _controller.value.duration?.inMilliseconds;
     if (mounted && _totalDuration != null && _totalDuration != 0) {
-      _playedValue = _controller.value.position.inMilliseconds / _totalDuration;
-      _dragPositionSubject.add(_playedValue);
-      _getBuffered(_bufferTimer);
+      setState(() {
+        _playedValue =
+            _controller.value.position.inMilliseconds / _totalDuration;
+      });
     }
   }
 
@@ -86,23 +88,14 @@ class _ProgressBarState extends State<ProgressBar> {
         _buff += (v.end - v.start);
       });
       _bufferedValue = (_buff.inMilliseconds) / _totalDuration;
-      _dragPositionSubject.add(_playedValue);
     } else {
       _bufferedValue = 0.0;
-      _dragPositionSubject.add(_playedValue);
     }
-  }
-
-  double _getPlayedValue() {
-    int _totalDuration = _controller.value.duration?.inMilliseconds;
-    if (mounted && _totalDuration != null && _totalDuration != 0)
-      return _controller.value.position.inMilliseconds / _totalDuration;
-    return 0.0;
+    setState(() {});
   }
 
   void _setValue() {
     _playedValue = _touchPoint.dx / context.size.width;
-    _dragPositionSubject.add(_playedValue);
   }
 
   void _checkTouchPoint() {
@@ -125,7 +118,7 @@ class _ProgressBarState extends State<ProgressBar> {
 
   Widget _buildBar() {
     return GestureDetector(
-      onHorizontalDragDown: (details) {print(details);
+      onHorizontalDragDown: (details) {
         _seekToRelativePosition(details.globalPosition);
         setState(() {
           _setValue();
@@ -134,7 +127,9 @@ class _ProgressBarState extends State<ProgressBar> {
       },
       onHorizontalDragUpdate: (details) {
         _seekToRelativePosition(details.globalPosition);
-        _setValue();
+        setState(() {
+          _setValue();
+        });
       },
       onHorizontalDragEnd: (details) {
         setState(() {
@@ -143,23 +138,19 @@ class _ProgressBarState extends State<ProgressBar> {
         _controller.play();
       },
       child: Container(
-          // constraints: BoxConstraints.expand(height: 7.0 * 2),
-          child: StreamBuilder(
-        stream: _dragPositionSubject.stream,
-        builder: (context, snapshot) {
-          return CustomPaint(
-            painter: _ProgressBarPainter(
-              progressWidth: 2.0,
-              handleRadius: 7.0,
-              playedValue: snapshot.data ?? _getPlayedValue(),
-              bufferedValue: _bufferedValue,
-              colors: widget.colors,
-              touchDown: _touchDown,
-              themeData: Theme.of(context).copyWith(),
-            ),
-          );
-        },
-      )),
+        constraints: BoxConstraints.expand(height: 7.0 * 2),
+        child: CustomPaint(
+          painter: _ProgressBarPainter(
+            progressWidth: 2.0,
+            handleRadius: 7.0,
+            playedValue: _playedValue,
+            bufferedValue: _bufferedValue,
+            colors: widget.colors,
+            touchDown: _touchDown,
+            themeData: Theme.of(context).copyWith(),
+          ),
+        ),
+      ),
     );
   }
 
@@ -207,7 +198,11 @@ class _ProgressBarPainter extends CustomPainter {
     final Offset startPoint = Offset(handleRadius, centerY);
     final Offset endPoint = Offset(size.width - handleRadius, centerY);
     final Offset progressPoint = Offset(
-        barLength * (playedValue < 0 ? 0.0 : playedValue > barLength ? 1.0 :playedValue) + handleRadius,
+        barLength *
+                (playedValue < 0
+                    ? 0.0
+                    : playedValue > barLength ? 1.0 : playedValue) +
+            handleRadius,
         centerY);
     final Offset secondProgressPoint = Offset(
         barLength *
