@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:video_player/video_player.dart';
 import 'package:vidflux/vidflux.dart';
 
@@ -29,7 +30,7 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
 VideoPlayerController _controller; 
-final String url = 'https://cdn.videvo.net/videvo_files/video/free/2019-04/originalContent/190408_01_Alaska_Landscapes1_09.mp4';
+final String url = 'https://bitmovin-a.akamaihd.net/content/playhouse-vr/mpds/105560.mpd';
 
  @override
   void initState() {
@@ -44,9 +45,8 @@ final String url = 'https://cdn.videvo.net/videvo_files/video/free/2019-04/origi
         title: Text(widget.title),
       ),
       body: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-           VidFlux(videoPlayerController: _controller)
+           VidFlux(videoPlayerController: _controller, autoPlay: true, )
           ],
         ),
       

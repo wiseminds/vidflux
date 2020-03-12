@@ -18,9 +18,7 @@ class PlayPauseButton extends StatefulWidget {
 }
 
 class _PlayPauseButtonState extends State<PlayPauseButton>
-    with SingleTickerProviderStateMixin
-    //  WidgetsBindingObserver 
-    {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   VideoPlayerController _controller;
   AnimationController _animController;
 
@@ -33,10 +31,11 @@ class _PlayPauseButtonState extends State<PlayPauseButton>
       value: 0,
       duration: Duration(milliseconds: 300),
     );
-    // WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addObserver(this);
     _controller.addListener(_playPauseListener);
   }
-     @override
+
+  @override
   void didUpdateWidget(PlayPauseButton oldWidget) {
     super.didUpdateWidget(oldWidget);
     oldWidget.controller.removeListener(_playPauseListener);
@@ -49,18 +48,36 @@ class _PlayPauseButtonState extends State<PlayPauseButton>
     super.deactivate();
     widget.controller.removeListener(_playPauseListener);
   }
+
   @override
   void dispose() {
     _animController.dispose();
     _controller?.removeListener(_playPauseListener);
+    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
-  // bool _wait = false;
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    switch (state) {
+      case AppLifecycleState.resumed:
+        widget.controller.addListener(_playPauseListener);
+        break;
+      case AppLifecycleState.detached:
+      case AppLifecycleState.paused:
+      case AppLifecycleState.inactive:
+        widget.controller.removeListener(_playPauseListener);
+        break;
+      default:
+        break;
+    }
+  }
+
+  bool _inProgress = false;
   void _playPauseListener() {
-    if (!_controller.value.isPlaying)
-      Provider.of<TouchDetector>(context, listen: false).toggleControl(true);
-    else  Provider.of<TouchDetector>(context, listen: false).toggleControl(false);
+    // if (!_controller.value.isPlaying)
+    // Provider.of<TouchDetector>(context, listen: false).toggleControl(true);
+    // else  Provider.of<TouchDetector>(context, listen: false).toggleControl(false);
     //  if (Provider.of<TouchDetector>(context).showControls && !_wait){
     //   _wait = true;
     //   Future.delayed(Duration(seconds: 5), () {
@@ -69,6 +86,16 @@ class _PlayPauseButtonState extends State<PlayPauseButton>
     //      });
     //      }
     if (_controller.value.isPlaying) {
+      if (!_inProgress &&
+          Provider.of<TouchDetector>(context, listen: false).showControls) {
+        _inProgress = true;
+        Future.delayed(Duration(seconds: 3), () {
+          if (Provider.of<TouchDetector>(context, listen: false).showControls &&
+              _controller.value.isPlaying)
+            Provider.of<TouchDetector>(context, listen: false).toggleControl();
+          _inProgress = false;
+        });
+      }
       if (_animController.status.index < 3 && !_animController.isAnimating)
         _animController.forward();
     } else {
@@ -85,22 +112,24 @@ class _PlayPauseButtonState extends State<PlayPauseButton>
       children: <Widget>[
         Consumer<TouchDetector>(builder: (context, detector, _) {
           return AnimatedOpacity(
-              duration: Duration(seconds: 2),
+              duration: Duration(milliseconds: 700),
+              curve: Curves.decelerate,
               opacity: detector?.showControls ?? true ? 1 : 0,
               child: Container(
                 color: Colors.black45,
                 alignment: Alignment.center,
                 child: InkWell(
                   borderRadius: BorderRadius.circular(50.0),
-                  onTap:   Provider.of<StateNotifier>(context).hasError ? null
-                  : () {
-                    _controller.value.isPlaying
-                        ? _controller.pause()
-                        : _controller.play();
-                    Provider.of<TouchDetector>(context, listen: false)
-                        .toggleControl(true);
-                  },
-                  child: Material(color: Colors.black12,
+                  onTap: Provider.of<StateNotifier>(context).hasError ||
+                          !detector.showControls
+                      ? null
+                      : () {
+                          _controller.value.isPlaying
+                              ? _controller.pause()
+                              : _controller.play();
+                        },
+                  child: Material(
+                    color: Colors.black12,
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(50.0)),
                     child: AnimatedIcon(

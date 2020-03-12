@@ -6,12 +6,12 @@ import 'package:flutter/services.dart';
 import 'package:video_player/video_player.dart';
 import 'package:vidflux/vidflux.dart';
 
-import 'screen_manager.dart';
 
 class FullScreenDialog extends StatefulWidget {
   final VideoPlayerController controller;
+  final List<DeviceOrientation> orientations;
 
-  const FullScreenDialog({Key key, this.controller}) : super(key: key);
+  const FullScreenDialog({Key key, this.controller, this.orientations }) : super(key: key);
   @override
   _FullScreenDialogState createState() => _FullScreenDialogState();
 }
@@ -21,11 +21,10 @@ class _FullScreenDialogState extends State<FullScreenDialog> {
   void initState() {
     super.initState();
     SystemChrome.setEnabledSystemUIOverlays([]);
-    SystemChrome.setPreferredOrientations([
+    SystemChrome.setPreferredOrientations(widget.orientations ?? [
       DeviceOrientation.landscapeLeft,
       DeviceOrientation.landscapeRight,
     ]);
-    ScreenManager().keepOn(true);
   }
 
   @override
@@ -33,8 +32,6 @@ class _FullScreenDialogState extends State<FullScreenDialog> {
     SystemChrome.restoreSystemUIOverlays();
      SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
     super.dispose();
-    // SystemChrome.setPreferredOrientations(DeviceOrientation.values);
-    ScreenManager().keepOn(false);
   }
 
   @override
