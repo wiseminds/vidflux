@@ -17,7 +17,7 @@ class ScreenManagerWidget extends StatefulWidget {
 }
 
 class _ScreenManagerState extends State<ScreenManagerWidget>
-    with WidgetsBindingObserver {
+      with WidgetsBindingObserver {
   Timer _screenTimer;
 
   void _initializeTimer() => _screenTimer =
