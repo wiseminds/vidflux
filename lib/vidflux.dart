@@ -3,7 +3,6 @@
 ///Sun Nov 24 2019
 library vidflux;
 
-import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -15,6 +14,8 @@ import 'package:video_player/video_player.dart';
 import 'src/video_controls.dart';
 import 'src/playpause_button.dart';
 import 'src/screen_manager.dart';
+
+export './src/screen_manager.dart';
 
 const IS_DEBUG_MODE = kDebugMode;
 
