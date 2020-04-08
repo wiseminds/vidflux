@@ -6,8 +6,8 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:video_player/video_player.dart';
+import 'package:vidflux/src/state/touch_notifier.dart';
 
-import '../vidflux.dart';
 import 'fullscreen_dialog.dart';
 import 'progress_bar.dart';
 
@@ -16,12 +16,15 @@ class VideoControls extends StatefulWidget {
   final Key playerKey;
   final bool isFullScreen;
   final List<DeviceOrientation> fullScreenOrientations;
+  final List<DeviceOrientation> exitOrientations;
 
   const VideoControls(
     this.controller, {
     Key key,
     this.playerKey,
-    this.isFullScreen, this.fullScreenOrientations,
+    this.isFullScreen,
+    this.fullScreenOrientations,
+    this.exitOrientations,
   }) : super(key: key);
   @override
   _VideoControlsState createState() => _VideoControlsState();
@@ -87,20 +90,21 @@ class _VideoControlsState extends State<VideoControls>
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<TouchDetector>(builder: (context, detector, _) {
+    return Consumer<TouchNotifier>(builder: (context, detector, _) {
       return AnimatedAlign(
           duration: Duration(milliseconds: 500),
-          alignment: Alignment(0, detector.showControls ? 1 : 1.5) ,
+          alignment: Alignment(0, detector.value ? 1 : 1.5),
           child: AnimatedOpacity(
             duration: Duration(milliseconds: 700),
-          opacity: detector.showControls ? 1 : 0,
-                      child: Container(
+            opacity: detector.value ? 1 : 0,
+            child: Container(
               padding: EdgeInsets.only(left: 5, right: 5),
               child: Row(
                 children: <Widget>[
                   StreamBuilder(
                       stream: _positionSubject.stream,
-                      builder: (context, snapshot) => Text(snapshot.data ?? '0.0',
+                      builder: (context, snapshot) => Text(
+                          snapshot.data ?? '0.0',
                           style: Theme.of(context).textTheme.caption.copyWith(
                                 color: Colors.white,
                               ))),
@@ -139,9 +143,12 @@ class _VideoControlsState extends State<VideoControls>
                               fullscreenDialog: true,
                               maintainState: true,
                               builder: (c) => Material(
-                                  child: FullScreenDialog(
-                                      key: widget.key,
-                                      controller: widget.controller)))))
+                                      child: FullScreenDialog(
+                                    key: widget.key,
+                                    controller: widget.controller,
+                                    orientations: widget.fullScreenOrientations,
+                                    exitOrientations: widget.exitOrientations,
+                                  )))))
                 ],
               ),
             ),

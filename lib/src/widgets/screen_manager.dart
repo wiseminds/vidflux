@@ -18,22 +18,20 @@ class ScreenManagerWidget extends StatefulWidget {
 
 class _ScreenManagerState extends State<ScreenManagerWidget>
       with WidgetsBindingObserver {
-  Timer _screenTimer;
-
-  void _initializeTimer() => _screenTimer =
-      Timer.periodic(Duration(seconds: 30), _screenListener)..tick;
+  StreamSubscription _subscription;
+  final _watchDuration = Duration(seconds: 30);
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     switch (state) {
       case AppLifecycleState.resumed:
-        _initializeTimer();
+    _subscription.resume();
         break;
       case AppLifecycleState.detached:
       case AppLifecycleState.paused:
       case AppLifecycleState.inactive:
-        _screenTimer.cancel();
-        ScreenManager().keepOn(false);
+       _subscription.pause();
+        ScreenManager.keepOn(false);
         break;
       default:
         break;
@@ -43,47 +41,52 @@ class _ScreenManagerState extends State<ScreenManagerWidget>
   @override
   void initState() {
     super.initState();
-    _initializeTimer();
+    _subscription = ScreenManager.watchScreen( _screenListener, _watchDuration);
     WidgetsBinding.instance.addObserver(this);
   }
 
-  void _screenListener(Timer t) async {
-    print(t);
-    if (widget.controller?.value?.isPlaying ?? false) {
-      if (await ScreenManager().isKeptOn()) return;
-      await ScreenManager().keepOn(true);
-    } else if (await ScreenManager().isKeptOn())
-      await ScreenManager().keepOn(false);
+  Future<void> _screenListener(bool isOn) async {
+    print('VidFlux: watching screen- $isOn');
+    if (widget.controller?.value?.isPlaying ?? false){
+      if(!isOn)
+      await ScreenManager.keepOn(true);
+    } else if (isOn)
+      await ScreenManager.keepOn(false);
   }
 
   @override
   void deactivate() {
-    ScreenManager().keepOn(false);
-    _screenTimer.cancel();
+    ScreenManager.keepOn(false);
+    _subscription.cancel();
     super.deactivate();
   }
 
   @override
   void dispose() {
-    _screenTimer.cancel();
+    _subscription.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    // TODO: add functionality to change brigthness
     return SizedBox.shrink();
   }
 }
-
+typedef  Future<void> Screenlistener(bool isScreenOn);
 class ScreenManager {
-  Future<double> getBrightness() async => await Screen.brightness;
+  static Future<double> getBrightness() async => await Screen.brightness;
 
-  Future<double> setBrightness(double brightness) async =>
+  static Future<double> setBrightness(double brightness) async =>
       await Screen.setBrightness(brightness);
 
-  Future<bool> isKeptOn() async => await Screen.isKeptOn;
+  static Future<bool> isKeptOn() async => await Screen.isKeptOn;
 
-  Future<bool> keepOn(bool on) async => await Screen.keepOn(on);
+  static Future<bool> keepOn(bool on) async => await Screen.keepOn(on);
+
+  static StreamSubscription watchScreen(Screenlistener listener, Duration watchhDuration)=>
+  Stream.periodic(watchhDuration ?? Duration(seconds: 10))
+  .listen((event) async {
+    listener( await ScreenManager.isKeptOn());
+  });
 }
