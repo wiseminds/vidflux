@@ -4,9 +4,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart';
+import 'package:vidflux/src/state/touch_notifier.dart';
 
-import '../vidflux.dart';
-
+import '../../vidflux.dart';
 /// A widget to display play/pause button.
 class PlayPauseButton extends StatefulWidget {
   final VideoPlayerController controller;
@@ -87,12 +87,12 @@ class _PlayPauseButtonState extends State<PlayPauseButton>
     //      }
     if (_controller.value.isPlaying) {
       if (!_inProgress &&
-          Provider.of<TouchDetector>(context, listen: false).showControls) {
+          Provider.of<TouchNotifier>(context, listen: false).value) {
         _inProgress = true;
         Future.delayed(Duration(seconds: 3), () {
-          if (Provider.of<TouchDetector>(context, listen: false).showControls &&
+          if (Provider.of<TouchNotifier>(context, listen: false).value &&
               _controller.value.isPlaying)
-            Provider.of<TouchDetector>(context, listen: false).toggleControl();
+            Provider.of<TouchNotifier>(context, listen: false).toggleControl();
           _inProgress = false;
         });
       }
@@ -110,18 +110,18 @@ class _PlayPauseButtonState extends State<PlayPauseButton>
     return Stack(
       fit: StackFit.passthrough,
       children: <Widget>[
-        Consumer<TouchDetector>(builder: (context, detector, _) {
+        Consumer<TouchNotifier>(builder: (context, detector, _) {
           return AnimatedOpacity(
               duration: Duration(milliseconds: 700),
               curve: Curves.decelerate,
-              opacity: detector?.showControls ?? true ? 1 : 0,
+              opacity: detector?.value ?? true ? 1 : 0,
               child: Container(
                 color: Colors.black45,
                 alignment: Alignment.center,
                 child: InkWell(
                   borderRadius: BorderRadius.circular(50.0),
                   onTap: Provider.of<StateNotifier>(context).hasError ||
-                          !detector.showControls
+                          !detector.value
                       ? null
                       : () {
                           _controller.value.isPlaying

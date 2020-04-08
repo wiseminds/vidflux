@@ -201,14 +201,14 @@ class _ProgressBarPainter extends CustomPainter {
         barLength *
                 (playedValue < 0
                     ? 0.0
-                    : playedValue > barLength ? 1.0 : playedValue) +
+                    : playedValue > 1.0 ? 1.0 : playedValue) +
             handleRadius,
         centerY);
     final Offset secondProgressPoint = Offset(
         barLength *
                 (bufferedValue < 0
                     ? 0.0
-                    : bufferedValue > barLength ? 1.0 : bufferedValue) +
+                    : bufferedValue > 1.0 ? 1.0 : bufferedValue) +
             handleRadius,
         centerY);
 

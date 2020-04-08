@@ -3,6 +3,7 @@
 ///Sun Nov 24 2019
 library vidflux;
 
+import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -11,13 +12,22 @@ import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart';
 
 
-import 'src/video_controls.dart';
-import 'src/playpause_button.dart';
-import 'src/screen_manager.dart';
+import 'src/state/touch_notifier.dart';
+import 'src/utils/connectivity_manager.dart';
+import 'src/widgets/brightness_control.dart';
+import 'src/widgets/error_indicator.dart';
+import 'src/widgets/playpause_button.dart';
+import 'src/widgets/screen_manager.dart';
+import 'src/widgets/video_controls.dart';
+import 'src/widgets/volume_controller.dart';
 
-export './src/screen_manager.dart';
+
 
 const IS_DEBUG_MODE = kDebugMode;
+
+enum VerticalDragType { voulme, brightness, none }
+
+enum VerticalDragDirection { up, down }
 
 /// ```
 /// A widget that plays video given the video url, this is not suitable for youtube videos see
@@ -26,7 +36,8 @@ const IS_DEBUG_MODE = kDebugMode;
 class VidFlux extends StatefulWidget {
   final bool isFullscreen;
   final VideoPlayerController videoPlayerController;
-  final TouchDetector _touchDetector;
+
+  final TouchNotifier _touchDetector;
 
   /// a widget to show when the video is in error state
   final Widget errorWidget;
@@ -34,14 +45,26 @@ class VidFlux extends StatefulWidget {
   /// a widget to show when the video is in error state
   final Widget loadingIndicator;
 
-/// number of times to re initialize the video when a playback error occurs
+  /// number of times to re initialize the video when a playback error occurs
   final int retry;
 
-/// if true the video automatically starts playing once initialized
+  /// if true the video automatically starts playing once initialized
   final bool autoPlay;
 
+  /// pause and play the video on double tap;
+  final bool pauseOnDoubleTap;
 
+  ///use swipe getsture to change volume
+  final bool useVolumeControls;
+
+  ///use swipe getsture to change brightness
+  final bool usebrightnessControls;
+
+  // orientations to use when entering fullscreen mode
   final List<DeviceOrientation> fullScreenOrientations;
+
+  // orientations to reset to  when exiting fullscreen mode
+  final List<DeviceOrientation> exitOrientations;
 
   VidFlux({
     Key key,
@@ -49,22 +72,33 @@ class VidFlux extends StatefulWidget {
     this.isFullscreen = false,
     this.errorWidget,
     this.loadingIndicator,
-    this.retry = 5, this.autoPlay = false, this.fullScreenOrientations,
-  })  : _touchDetector =
-            TouchDetector(videoPlayerController, isFullscreen ?? false),
+    this.retry = 5,
+    this.autoPlay = false,
+    this.fullScreenOrientations,
+    this.pauseOnDoubleTap = true,
+    this.useVolumeControls = true,
+    this.usebrightnessControls = true,
+    this.exitOrientations,
+  })  : _touchDetector = TouchNotifier(),
         super(key: key);
   @override
   VidFluxState createState() => VidFluxState();
 }
 
-class VidFluxState extends State<VidFlux>{
+class VidFluxState extends State<VidFlux> {
+  final GlobalKey<VolumeControllerState> _volumeKey = GlobalKey();
+  final GlobalKey<BrightnessControllerState> _brightnessKey = GlobalKey();
+
   VideoPlayerController _videoPlayerController;
   bool isLoading = true;
   bool isInitializing = true;
   int retryInit;
   StateNotifier _stateNotifier;
 
-  void _errorListener() {
+  void _errorListener() async {
+     if (!this.mounted && _videoPlayerController.value.isPlaying) {
+       _videoPlayerController.play();
+     }
     if (widget.videoPlayerController.value.hasError) {
       if (IS_DEBUG_MODE)
         print(
@@ -72,26 +106,38 @@ class VidFluxState extends State<VidFlux>{
 
       if (retryInit > 0) {
         retryInit--;
-        _videoPlayerController?.value?.copyWith();
-        if (_videoPlayerController.value?.errorDescription?.contains('404') ??
-            false) {
+        bool hasInternet = await ConnectivityManager.checkConnectivity();
+        if (hasInternet) {
+          _videoPlayerController?.value?.copyWith();
+          if (_videoPlayerController.value?.errorDescription?.contains('404') ??
+              false) {
+            _stateNotifier.setLoading(false);
+            _stateNotifier.setHasError(
+                true, _videoPlayerController.value?.errorDescription);
+            retryInit = widget.retry;
+            setState(() {});
+          } else
+            initController();
+        } else {
           _stateNotifier.setLoading(false);
           _stateNotifier.setHasError(
               true, _videoPlayerController.value?.errorDescription);
           retryInit = widget.retry;
           setState(() {});
-        } else
-          initController();
+        }
       } else {
+        Scaffold.of(context).showSnackBar(SnackBar(
+          content: Text(' You are not connected to the internet'),
+          backgroundColor: Colors.red,
+        ));
         _stateNotifier.setLoading(false);
         _stateNotifier.setHasError(
-            true, _videoPlayerController.value?.errorDescription);
+            true, ' You are not connected to the internet');
         retryInit = widget.retry;
         setState(() {});
       }
     }
   }
-
 
   @override
   void initState() {
@@ -100,16 +146,19 @@ class VidFluxState extends State<VidFlux>{
     _stateNotifier = StateNotifier();
     if (!_videoPlayerController.value.initialized) initController();
     _videoPlayerController.addListener(_errorListener);
-    if(widget.autoPlay || widget._touchDetector.isFullScreen) _videoPlayerController.play();
+    if (widget.autoPlay || widget.isFullscreen) _videoPlayerController.play();
     super.initState();
   }
-
-
+   void disposeController() {
+     _videoPlayerController.dispose();
+   }
+ 
   void initController() {
     _stateNotifier.setLoading(true);
     _videoPlayerController?.value?.copyWith();
     _stateNotifier.setHasError(false);
     if (IS_DEBUG_MODE) print('init .........................$retryInit');
+
     _videoPlayerController
       ..initialize().then((_) {
         isInitializing = false;
@@ -129,40 +178,63 @@ class VidFluxState extends State<VidFlux>{
   @override
   void dispose() {
     _videoPlayerController.removeListener(_errorListener);
-    ScreenManager().keepOn(false);
+    ScreenManager.keepOn(false);
     super.dispose();
   }
 
+  VerticalDragType _verticalDragType = VerticalDragType.none;
+  // VerticalDragDirection _verticalDragDirection = VerticalDragDirection.down;
+  double _verticalStartPosition = 0.0;
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-        onTap: () {print('touch gesture detected');
-          // if (_videoPlayerController.value.isPlaying)
-            widget._touchDetector
-                .toggleControl();
-          // else if (!widget._touchDetector._showControls)
-          //   widget._touchDetector.toggleControl(true);
+        onTap: () {
+          widget._touchDetector.toggleControl();
         },
-        // onHorizontalDragStart: (details) {
-        //   _stateNotifier.setTakeAction(false);
-        // },
-        // onHorizontalDragEnd: (details) {
-        //   _stateNotifier.setTakeAction(true);
-        // },
-        // onHorizontalDragCancel: () {
-        //   _stateNotifier.setTakeAction(true);
-        // },
-        // onHorizontalDragUpdate: (details) async {
-        // WidgetsBinding.instance.addPostFrameCallback((d) async {
-        //   if ( _videoPlayerController.value.initialized) {
-        //      _videoPlayerController.seekTo(
-        //         await  _videoPlayerController?.position +
-        //             Duration(seconds: (details.delta.dx > 1 ? 10 : -10)));
+        onDoubleTap: widget.pauseOnDoubleTap
+            ? () {
+                widget._touchDetector.setValue(true);
+                if (_videoPlayerController?.value?.isPlaying ?? false) {
+                  _videoPlayerController.pause();
+                } else
+                  _videoPlayerController.play();
+              }
+            : null,
+        onVerticalDragDown: (details) {
+          double width = MediaQuery.of(context).size.width;
+          if (details.localPosition.dx < width * .45)
+            _verticalDragType = VerticalDragType.brightness;
+          else if (details.localPosition.dx > width * .55)
+            _verticalDragType = VerticalDragType.voulme;
+          else
+            _verticalDragType = VerticalDragType.none;
+        },
+        onVerticalDragStart: (details) {
+          _verticalStartPosition = details.localPosition.dy;
+        },
+        onVerticalDragUpdate: (details) {
+          double dragExtent = 20;
+          // _verticalDragDirection = (details.delta.direction > 0)
+          //     ? VerticalDragDirection.down
+          //     : VerticalDragDirection.up;
+          if (_verticalDragType != VerticalDragType.none) {
+            double dragDistance =
+                _verticalStartPosition - details.localPosition.dy;
 
-        //      _videoPlayerController?.play();
-        //   }
-        // });
-        // },
+            (_verticalDragType == VerticalDragType.voulme)
+                ? _volumeKey.currentState.changeVolume(max(
+                    -1.0,
+                    min(dragDistance / (_verticalStartPosition * dragExtent),
+                        1.0)))
+                : _brightnessKey.currentState.changeBrightness(max(
+                    -1.0,
+                    min(dragDistance / (_verticalStartPosition * dragExtent),
+                        1.0)));
+          }
+        },
+        onVerticalDragEnd: (details) {
+          _verticalDragType = VerticalDragType.none;
+        },
         child: Container(
             color: Colors.black,
             child: MultiProvider(
@@ -182,13 +254,21 @@ class VidFluxState extends State<VidFlux>{
                   child: Stack(
                     alignment: Alignment.center,
                     children: <Widget>[
-                      Builder(builder: (context)=> ScreenManagerWidget(_videoPlayerController)),
+                      Builder(
+                          builder: (context) =>
+                              ScreenManagerWidget(_videoPlayerController)),
                       _videoPlayerController.value.initialized
                           ? VideoPlayer(_videoPlayerController)
                           : Container(
                               color: Colors.black,
                             ),
                       Center(child: LoadinIndicator(_videoPlayerController)),
+                      if (widget.useVolumeControls)
+                        VolumeController(
+                          key: _volumeKey,
+                        ),
+                      if (widget.usebrightnessControls)
+                        BrightnessController(key: _brightnessKey),
                       if (_videoPlayerController.value.initialized)
                         PlayPauseButton(
                           controller: _videoPlayerController,
@@ -198,14 +278,16 @@ class VidFluxState extends State<VidFlux>{
                             margin: EdgeInsets.only(bottom: 10),
                             alignment: Alignment.bottomCenter,
                             child: VideoControls(_videoPlayerController,
-                                playerKey: widget.key, fullScreenOrientations: widget.fullScreenOrientations,
-                                isFullScreen: widget.isFullscreen)),
-                     widget.errorWidget ?? ErrorWidget(initController: initController),
-                      // VideoProgressIndicator(_videoPlayerController, allowScrubbing: true,)
+                                playerKey: widget.key,
+                                fullScreenOrientations:
+                                    widget.fullScreenOrientations,
+                                isFullScreen: widget.isFullscreen,
+                                exitOrientations: widget.exitOrientations,)),
+                      widget.errorWidget ??
+                          ErrorIndicator(initController: initController),
                     ],
                   )),
             )));
-    // Chewie(controller: _playerController);
   }
 }
 
@@ -327,76 +409,4 @@ class _LoadinIndicatorState extends State<LoadinIndicator> {
   }
 }
 
-class ErrorWidget extends StatefulWidget {
-  final VoidCallback initController;
 
-  const ErrorWidget({Key key, this.initController}) : super(key: key);
-  @override
-  _ErrorWidgetState createState() => _ErrorWidgetState();
-}
-
-class _ErrorWidgetState extends State<ErrorWidget> {
-  @override
-  Widget build(BuildContext context) {
-    return Consumer<StateNotifier>(
-        builder: (context, state, _) => state._hasError
-            ? Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: <Widget>[
-                    Text(
-                      state.message ?? '',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.headline4.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w100,
-                          letterSpacing: 2),
-                    ),
-                    Align(
-                      alignment: Alignment.bottomRight,
-                      child: RaisedButton(
-                          color: Colors.white,
-                          child: Text(
-                            'Reload',
-                            style: Theme.of(context)
-                                .textTheme
-                                .body1
-                                .copyWith(color: Colors.black),
-                          ),
-                          onPressed: widget.initController),
-                    ),
-                    // Spacer(),
-                    Align(
-                      alignment: Alignment.topLeft,
-                      child: Icon(
-                        Icons.error_outline,
-                        color: Colors.red,
-                        size: 20,
-                      ),
-                    ),
-                  ],
-                ),
-              )
-            : SizedBox.shrink());
-  }
-}
-
-class TouchDetector with ChangeNotifier {
-  final VideoPlayerController _playerController;
-  bool _showControls = true;
-  bool _isFullScreen;
-
-  TouchDetector(this._playerController, this._isFullScreen)
-      : _showControls = !_isFullScreen;
-
-  VideoPlayerController get playerController => _playerController;
-  bool get showControls => _showControls;
-  bool get isFullScreen => _isFullScreen;
-
-  set fullScreen(bool value) => _isFullScreen = value;
-  void toggleControl() {
-      _showControls = !_showControls;
-      notifyListeners();
-  }
-}

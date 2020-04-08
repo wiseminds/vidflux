@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 class FullScreenNotifier with ChangeNotifier {
-  int _itemClicked = 0;
   bool _isFullScreen = false;
 
   bool get isFullScreen => _isFullScreen;
