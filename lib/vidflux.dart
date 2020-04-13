@@ -372,7 +372,7 @@ class _LoadinIndicatorState extends State<LoadinIndicator> {
       _counter = 0;
       if (state.position ==
           widget._controller?.value?.position) {
-        if (!state).isLoading &&
+        if (!state.isLoading &&
            state.takeAction)
          state.setLoading(true);
         if (!(widget._controller?.value?.isPlaying ?? false))
