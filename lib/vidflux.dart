@@ -11,7 +11,6 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart';
 
-
 import 'src/state/touch_notifier.dart';
 import 'src/utils/connectivity_manager.dart';
 import 'src/widgets/brightness_control.dart';
@@ -20,8 +19,6 @@ import 'src/widgets/playpause_button.dart';
 import 'src/widgets/screen_manager.dart';
 import 'src/widgets/video_controls.dart';
 import 'src/widgets/volume_controller.dart';
-
-
 
 const IS_DEBUG_MODE = kDebugMode;
 
@@ -96,9 +93,9 @@ class VidFluxState extends State<VidFlux> {
   StateNotifier _stateNotifier;
 
   void _errorListener() async {
-     if (!this.mounted && _videoPlayerController.value.isPlaying) {
-       _videoPlayerController.play();
-     }
+    if (!this.mounted && _videoPlayerController.value.isPlaying) {
+      _videoPlayerController.play();
+    }
     if (widget.videoPlayerController.value.hasError) {
       if (IS_DEBUG_MODE)
         print(
@@ -149,13 +146,14 @@ class VidFluxState extends State<VidFlux> {
     if (widget.autoPlay || widget.isFullscreen) _videoPlayerController.play();
     super.initState();
   }
-   void disposeController() {
-     _videoPlayerController.dispose();
-   }
- 
+
+  void disposeController() {
+    _videoPlayerController.dispose();
+  }
+
   void initController() {
     _stateNotifier.setLoading(true);
-    _videoPlayerController?.value?.copyWith();
+    _videoPlayerController?.value = VideoPlayerValue.uninitialized();
     _stateNotifier.setHasError(false);
     if (IS_DEBUG_MODE) print('init .........................$retryInit');
 
@@ -277,12 +275,14 @@ class VidFluxState extends State<VidFlux> {
                         Container(
                             margin: EdgeInsets.only(bottom: 10),
                             alignment: Alignment.bottomCenter,
-                            child: VideoControls(_videoPlayerController,
-                                playerKey: widget.key,
-                                fullScreenOrientations:
-                                    widget.fullScreenOrientations,
-                                isFullScreen: widget.isFullscreen,
-                                exitOrientations: widget.exitOrientations,)),
+                            child: VideoControls(
+                              _videoPlayerController,
+                              playerKey: widget.key,
+                              fullScreenOrientations:
+                                  widget.fullScreenOrientations,
+                              isFullScreen: widget.isFullscreen,
+                              exitOrientations: widget.exitOrientations,
+                            )),
                       widget.errorWidget ??
                           ErrorIndicator(initController: initController),
                     ],
@@ -408,5 +408,3 @@ class _LoadinIndicatorState extends State<LoadinIndicator> {
                 : SizedBox.shrink());
   }
 }
-
-

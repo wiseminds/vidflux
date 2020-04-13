@@ -174,3 +174,4 @@ class _VideoControlsState extends State<VideoControls>
     return formattedTime;
   }
 }
+
