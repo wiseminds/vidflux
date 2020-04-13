@@ -121,7 +121,8 @@ class BrightnessControllerState extends State<BrightnessController>
                                 ),
                                 Text('${(val * 100).round()}%',
                                     style:
-                                        Theme.of(context).textTheme.headline5),
+                                        Theme.of(context).textTheme.headline5
+                                        .copyWith(color: Colors.white)),
                               ],
                             ),
                           )
