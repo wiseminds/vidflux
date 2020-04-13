@@ -260,7 +260,7 @@ class VidFluxState extends State<VidFlux> {
                           : Container(
                               color: Colors.black,
                             ),
-                      Center(child: LoadinIndicator(_videoPlayerController)),
+                      Center(child: LoadinIndicator(_videoPlayerController, widget.loadingIndicator)),
                       if (widget.useVolumeControls)
                         VolumeController(
                           key: _volumeKey,
@@ -338,8 +338,9 @@ class StateNotifier with ChangeNotifier {
 
 class LoadinIndicator extends StatefulWidget {
   final VideoPlayerController _controller;
+  final Widget indicator;
 
-  const LoadinIndicator(this._controller);
+  const LoadinIndicator(this._controller,[ this.indicator]);
   @override
   _LoadinIndicatorState createState() => _LoadinIndicatorState();
 }
@@ -364,33 +365,32 @@ class _LoadinIndicatorState extends State<LoadinIndicator> {
 
   int _counter = 0;
   void _buferingListener() {
+   final state = Provider.of<StateNotifier>(context, listen: false);
     // print('counter..........................$_counter');
 
     if (_counter > 10) {
       _counter = 0;
-      if (Provider.of<StateNotifier>(context, listen: false).position ==
+      if (state.position ==
           widget._controller?.value?.position) {
-        if (!Provider.of<StateNotifier>(context, listen: false).isLoading &&
-            Provider.of<StateNotifier>(context, listen: false).takeAction)
-          Provider.of<StateNotifier>(context, listen: false).setLoading(true);
+        if (!state).isLoading &&
+           state.takeAction)
+         state.setLoading(true);
         if (!(widget._controller?.value?.isPlaying ?? false))
-          Provider.of<StateNotifier>(context, listen: false).setLoading(false);
+         state.setLoading(false);
       } else {
-        if (Provider.of<StateNotifier>(context, listen: false).isLoading &&
-            Provider.of<StateNotifier>(context, listen: false).takeAction)
-          Provider.of<StateNotifier>(context, listen: false).setLoading(false);
+        if (state.isLoading &&
+            state.takeAction)
+         state.setLoading(false);
         if (!(widget._controller?.value?.isPlaying ?? false))
-          Provider.of<StateNotifier>(context, listen: false).setLoading(false);
+          state.setLoading(false);
       }
-      if (Provider.of<StateNotifier>(context, listen: false).takeAction)
-        Provider.of<StateNotifier>(context, listen: false)
+      if (state.takeAction)
+        state
             .setPosition(widget._controller?.value?.position);
     }
-    //  if (_counter == 1)
-    // Provider.of<StateNotifier>(context).setPosition(widget._controller?.value?.position);
     _counter++;
     if (widget._controller?.value?.isBuffering ?? true)
-      Provider.of<StateNotifier>(context, listen: false).setLoading(true);
+     state.setLoading(true);
   }
 
   @override
@@ -398,7 +398,8 @@ class _LoadinIndicatorState extends State<LoadinIndicator> {
     return Consumer<StateNotifier>(
         builder: (context, state, _) =>
             state._isLoading || (widget._controller?.value?.isBuffering ?? true)
-                ? Container(
+                ? widget.indicator != null ? widget.indicator
+                : Container(
                     width: 70.0,
                     height: 70.0,
                     child: CircularProgressIndicator(
