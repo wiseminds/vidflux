@@ -11,8 +11,9 @@ class FullScreenDialog extends StatefulWidget {
   final VideoPlayerController controller;
   final List<DeviceOrientation> orientations;
   final List<DeviceOrientation> exitOrientations;
+  final Widget loadingIndicator;
 
-  const FullScreenDialog({Key key, this.controller, this.orientations, this.exitOrientations }) : super(key: key);
+  const FullScreenDialog({Key key, this.controller, this.orientations, this.exitOrientations, this.loadingIndicator }) : super(key: key);
   @override
   _FullScreenDialogState createState() => _FullScreenDialogState();
 }
@@ -50,6 +51,7 @@ class _FullScreenDialogState extends State<FullScreenDialog> {
           child: VidFlux(
         key: widget.key,
         videoPlayerController: widget.controller,
+        loadingIndicator: widget.loadingIndicator,
         isFullscreen: true,
       )),
     );

@@ -17,6 +17,7 @@ class VideoControls extends StatefulWidget {
   final bool isFullScreen;
   final List<DeviceOrientation> fullScreenOrientations;
   final List<DeviceOrientation> exitOrientations;
+  final Widget loadingIndicator;
 
   const VideoControls(
     this.controller, {
@@ -24,7 +25,7 @@ class VideoControls extends StatefulWidget {
     this.playerKey,
     this.isFullScreen,
     this.fullScreenOrientations,
-    this.exitOrientations,
+    this.exitOrientations, this.loadingIndicator,
   }) : super(key: key);
   @override
   _VideoControlsState createState() => _VideoControlsState();
@@ -145,6 +146,7 @@ class _VideoControlsState extends State<VideoControls>
                               builder: (c) => Material(
                                       child: FullScreenDialog(
                                     key: widget.key,
+                                    loadingIndicator: widget.loadingIndicator,
                                     controller: widget.controller,
                                     orientations: widget.fullScreenOrientations,
                                     exitOrientations: widget.exitOrientations,

@@ -124,12 +124,12 @@ class VidFluxState extends State<VidFlux> {
         }
       } else {
         Scaffold.of(context).showSnackBar(SnackBar(
-          content: Text(' You are not connected to the internet'),
+          content: Text('An Error occured playing video, please check your internet connection'),
           backgroundColor: Colors.red,
         ));
         _stateNotifier.setLoading(false);
         _stateNotifier.setHasError(
-            true, ' You are not connected to the internet');
+            true, 'An Error occured playing video, please check your internet connection');
         retryInit = widget.retry;
         setState(() {});
       }
@@ -278,6 +278,7 @@ class VidFluxState extends State<VidFlux> {
                             child: VideoControls(
                               _videoPlayerController,
                               playerKey: widget.key,
+                              loadingIndicator: widget.loadingIndicator,
                               fullScreenOrientations:
                                   widget.fullScreenOrientations,
                               isFullScreen: widget.isFullscreen,
