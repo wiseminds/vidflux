@@ -46,7 +46,7 @@ class _ScreenManagerState extends State<ScreenManagerWidget>
   }
 
   Future<void> _screenListener(bool isOn) async {
-    print('VidFlux: watching screen- $isOn');
+    print('VidFlux: watching screen- status: $isOn');
     if (widget.controller?.value?.isPlaying ?? false){
       if(!isOn)
       await ScreenManager.keepOn(true);

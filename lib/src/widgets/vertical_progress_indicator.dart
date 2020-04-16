@@ -129,7 +129,7 @@ class _VerticalProgressIndicatorPainter extends CustomPainter {
     }
 
     if (value != null) {
-      print(value);
+      // print(value);
       drawBar(0.0, value.clamp(0.0, 1.0) * size.height as double);
       drawBar(0.0, size.height * .01);
     }
