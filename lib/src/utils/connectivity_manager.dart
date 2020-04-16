@@ -9,4 +9,11 @@ class ConnectivityManager {
     else
       return false;
   }
+
+  static bool checkResult(ConnectivityResult result) =>
+      (result == ConnectivityResult.mobile ||
+          result == ConnectivityResult.wifi);
+
+  static Stream<ConnectivityResult> get connectionStream =>
+      Connectivity().onConnectivityChanged;
 }

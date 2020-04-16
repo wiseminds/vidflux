@@ -31,7 +31,7 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
 VideoPlayerControlerProvider _controller; 
 final GlobalKey<VidFluxState> _key = GlobalKey(debugLabel: 'vidflux');
-final String url = 'https://streaming.viewmedia.tv/viewsatstream37/viewsatstream37.smil/playlist.m3u8';
+final String url = 'https://bitmovin-a.akamaihd.net/content/playhouse-vr/mpds/105560.mpd';
 final String url2 = 'https://bitmovin-a.akamaihd.net/content/playhouse-vr/mpds/105560.mpd';
 
  @override
