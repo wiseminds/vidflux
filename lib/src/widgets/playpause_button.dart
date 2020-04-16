@@ -39,7 +39,6 @@ class _PlayPauseButtonState extends State<PlayPauseButton>
   void didUpdateWidget(PlayPauseButton oldWidget) {
     super.didUpdateWidget(oldWidget);
     oldWidget.controller.removeListener(_playPauseListener);
-    // _textureId = widget.controller.textureId;
     widget.controller.addListener(_playPauseListener);
   }
 

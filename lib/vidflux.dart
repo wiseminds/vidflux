@@ -3,8 +3,10 @@
 ///Sun Nov 24 2019
 library vidflux;
 
+import 'dart:async';
 import 'dart:math';
 
+import 'package:connectivity/connectivity.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -51,6 +53,11 @@ class VidFlux extends StatefulWidget {
   /// pause and play the video on double tap;
   final bool pauseOnDoubleTap;
 
+  /// use indicator that shows current connectivity status.
+  final bool useConnectionMonitor;
+
+  final bool showCaption;
+
   ///use swipe getsture to change volume
   final bool useVolumeControls;
 
@@ -71,11 +78,13 @@ class VidFlux extends StatefulWidget {
     this.loadingIndicator,
     this.retry = 5,
     this.autoPlay = false,
+    this.useConnectionMonitor = true,
     this.fullScreenOrientations,
     this.pauseOnDoubleTap = true,
     this.useVolumeControls = true,
     this.usebrightnessControls = true,
     this.exitOrientations,
+    this.showCaption = true,
   })  : _touchDetector = TouchNotifier(),
         super(key: key);
   @override
@@ -92,11 +101,41 @@ class VidFluxState extends State<VidFlux> {
   int retryInit;
   StateNotifier _stateNotifier;
 
+  StreamSubscription _connectivitySubscription;
+
+  ///wait for internet commection and reload video
+  void _connectionListener(ConnectivityResult result) {
+    if (IS_DEBUG_MODE) print('Awaiting iternet connection $result');
+    bool status = ConnectivityManager.checkResult(result);
+    if (status) {
+      if (_videoPlayerController.value.hasError) initController();
+      _connectivitySubscription.cancel();
+
+      _connectionValue.value =
+          _connectionValue.value.copyWith(isConnected: true);
+      Future.delayed(Duration(seconds: 5), () {
+        if (_connectionValue.value.isConnected)
+          _connectionValue.value =
+              _connectionValue.value.copyWith(isWatching: false);
+      });
+    }
+  }
+
+  ValueNotifier<ConnectionValue> _connectionValue =
+      ValueNotifier(ConnectionValue());
+
+  /// subc=scribe to connection events
+  void _startSubscription() {
+    _connectionValue.value = _connectionValue.value.copyWith(isWatching: true);
+    _connectivitySubscription =
+        ConnectivityManager.connectionStream.listen(_connectionListener);
+  }
+
   void _errorListener() async {
     if (!this.mounted && _videoPlayerController.value.isPlaying) {
       _videoPlayerController.play();
     }
-    if (widget.videoPlayerController.value.hasError) {
+    if (_videoPlayerController.value.hasError) {
       if (IS_DEBUG_MODE)
         print(
             'error listener. $retryInit   .${_videoPlayerController.value?.errorDescription}');
@@ -120,16 +159,20 @@ class VidFluxState extends State<VidFlux> {
           _stateNotifier.setHasError(
               true, _videoPlayerController.value?.errorDescription);
           retryInit = widget.retry;
-          setState(() {});
+          _connectionValue.value =
+              _connectionValue.value.copyWith(isConnected: false);
+          setState(_startSubscription);
         }
       } else {
         Scaffold.of(context).showSnackBar(SnackBar(
-          content: Text('An Error occured playing video, please check your internet connection'),
+          content: Text(
+              'An Error occured playing video, please check your internet connection...',
+              ),
           backgroundColor: Colors.red,
         ));
         _stateNotifier.setLoading(false);
-        _stateNotifier.setHasError(
-            true, 'An Error occured playing video, please check your internet connection');
+        _stateNotifier.setHasError(true,
+            'An Error occured playing video, please check your internet connection');
         retryInit = widget.retry;
         setState(() {});
       }
@@ -212,9 +255,6 @@ class VidFluxState extends State<VidFlux> {
         },
         onVerticalDragUpdate: (details) {
           double dragExtent = 20;
-          // _verticalDragDirection = (details.delta.direction > 0)
-          //     ? VerticalDragDirection.down
-          //     : VerticalDragDirection.up;
           if (_verticalDragType != VerticalDragType.none) {
             double dragDistance =
                 _verticalStartPosition - details.localPosition.dy;
@@ -238,7 +278,8 @@ class VidFluxState extends State<VidFlux> {
             child: MultiProvider(
               providers: [
                 ChangeNotifierProvider(create: (_) => widget._touchDetector),
-                ChangeNotifierProvider(create: (_) => _stateNotifier)
+                ChangeNotifierProvider(create: (_) => _stateNotifier),
+                ChangeNotifierProvider(create: (context) => _connectionValue)
               ],
               child: AspectRatio(
                   aspectRatio: (widget.isFullscreen &&
@@ -260,7 +301,9 @@ class VidFluxState extends State<VidFlux> {
                           : Container(
                               color: Colors.black,
                             ),
-                      Center(child: LoadinIndicator(_videoPlayerController, widget.loadingIndicator)),
+                      Center(
+                          child: LoadinIndicator(
+                              _videoPlayerController, widget.loadingIndicator)),
                       if (widget.useVolumeControls)
                         VolumeController(
                           key: _volumeKey,
@@ -286,6 +329,39 @@ class VidFluxState extends State<VidFlux> {
                             )),
                       widget.errorWidget ??
                           ErrorIndicator(initController: initController),
+                      if (widget.showCaption)
+                        Align(
+                          alignment: Alignment.bottomCenter,
+                          child: Container(
+                            color: Colors.transparent,
+                            alignment: Alignment.center,
+                            height: 20,
+                            child: Text(
+                                _videoPlayerController.value.caption.text ??
+                                    '', overflow: TextOverflow.ellipsis,),
+                          ),
+                        ),
+                      if (widget.useConnectionMonitor)
+                        Builder(
+                          builder: (c) =>
+                              Consumer<ValueNotifier<ConnectionValue>>(
+                            builder: (c, state, child) => state.value.isWatching
+                                ? Align(
+                                    alignment: Alignment.bottomCenter,
+                                    child: Container(
+                                      color: state.value.isConnected
+                                          ? Colors.green
+                                          : Colors.red,
+                                      alignment: Alignment.center,
+                                      height: 20,
+                                      child: Text(
+                                          'Internet connection ${state.value.isConnected ? 'restored' : 'lost, awaiting connection'}',
+                                           overflow: TextOverflow.ellipsis,),
+                                    ),
+                                  )
+                                : SizedBox.shrink(),
+                          ),
+                        ),
                     ],
                   )),
             )));
@@ -341,7 +417,7 @@ class LoadinIndicator extends StatefulWidget {
   final VideoPlayerController _controller;
   final Widget indicator;
 
-  const LoadinIndicator(this._controller,[ this.indicator]);
+  const LoadinIndicator(this._controller, [this.indicator]);
   @override
   _LoadinIndicatorState createState() => _LoadinIndicatorState();
 }
@@ -366,32 +442,25 @@ class _LoadinIndicatorState extends State<LoadinIndicator> {
 
   int _counter = 0;
   void _buferingListener() {
-   final state = Provider.of<StateNotifier>(context, listen: false);
+    final state = Provider.of<StateNotifier>(context, listen: false);
     // print('counter..........................$_counter');
 
     if (_counter > 10) {
       _counter = 0;
-      if (state.position ==
-          widget._controller?.value?.position) {
-        if (!state.isLoading &&
-           state.takeAction)
-         state.setLoading(true);
+      if (state.position == widget._controller?.value?.position) {
+        if (!state.isLoading && state.takeAction) state.setLoading(true);
         if (!(widget._controller?.value?.isPlaying ?? false))
-         state.setLoading(false);
+          state.setLoading(false);
       } else {
-        if (state.isLoading &&
-            state.takeAction)
-         state.setLoading(false);
+        if (state.isLoading && state.takeAction) state.setLoading(false);
         if (!(widget._controller?.value?.isPlaying ?? false))
           state.setLoading(false);
       }
       if (state.takeAction)
-        state
-            .setPosition(widget._controller?.value?.position);
+        state.setPosition(widget._controller?.value?.position);
     }
     _counter++;
-    if (widget._controller?.value?.isBuffering ?? true)
-     state.setLoading(true);
+    if (widget._controller?.value?.isBuffering ?? true) state.setLoading(true);
   }
 
   @override
@@ -399,14 +468,27 @@ class _LoadinIndicatorState extends State<LoadinIndicator> {
     return Consumer<StateNotifier>(
         builder: (context, state, _) =>
             state._isLoading || (widget._controller?.value?.isBuffering ?? true)
-                ? widget.indicator != null ? widget.indicator
-                : Container(
-                    width: 70.0,
-                    height: 70.0,
-                    child: CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation(Colors.white),
-                    ),
-                  )
+                ? widget.indicator != null
+                    ? widget.indicator
+                    : Container(
+                        width: 70.0,
+                        height: 70.0,
+                        child: CircularProgressIndicator(
+                          valueColor: AlwaysStoppedAnimation(Colors.white),
+                        ),
+                      )
                 : SizedBox.shrink());
   }
+}
+
+class ConnectionValue {
+  final bool isConnected;
+  final bool isWatching;
+
+  ConnectionValue({this.isConnected = true, this.isWatching = false});
+
+  ConnectionValue copyWith({bool isConnected, bool isWatching}) =>
+      ConnectionValue(
+          isConnected: isConnected ?? this.isConnected,
+          isWatching: isWatching ?? this.isWatching);
 }
