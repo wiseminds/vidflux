@@ -123,12 +123,12 @@ class VolumeControllerState extends State<VolumeController>
                                   'Volume',
                                   style: Theme.of(context)
                                       .textTheme
-                                      .headline4
+                                      .headline
                                       .copyWith(color: Colors.white),
                                 ),
                                 Text('${((val) * 100).round()}%',
                                     style:
-                                        Theme.of(context).textTheme.headline5
+                                        Theme.of(context).textTheme.headline
                                         .copyWith(color: Colors.white)),
                               ],
                             ),

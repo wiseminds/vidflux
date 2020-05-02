@@ -26,7 +26,7 @@ class _ErrorWidgetState extends State<ErrorIndicator> {
                     Text(
                       state.message ?? '',
                       textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.headline4.copyWith(
+                      style: Theme.of(context).textTheme.headline.copyWith(
                           color: Colors.white,
                           fontWeight: FontWeight.w100,
                           letterSpacing: 2),
@@ -39,7 +39,7 @@ class _ErrorWidgetState extends State<ErrorIndicator> {
                             'Reload',
                             style: Theme.of(context)
                                 .textTheme
-                                .bodyText1
+                                .body1
                                 .copyWith(color: Colors.black),
                           ),
                           onPressed: widget.initController),
