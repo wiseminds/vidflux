@@ -304,6 +304,18 @@ class VidFluxState extends State<VidFlux> {
                       Center(
                           child: LoadinIndicator(
                               _videoPlayerController, widget.loadingIndicator)),
+                              if (widget.showCaption)
+                        Align(
+                          alignment: Alignment.bottomCenter,
+                          child: Container(
+                            color: Colors.transparent,
+                            alignment: Alignment.center,
+                            height: 20,
+                            child: Text(
+                                _videoPlayerController.value.caption.text ??
+                                    '', overflow: TextOverflow.ellipsis,),
+                          ),
+                        ),
                       if (widget.useVolumeControls)
                         VolumeController(
                           key: _volumeKey,
@@ -329,18 +341,7 @@ class VidFluxState extends State<VidFlux> {
                             )),
                       widget.errorWidget ??
                           ErrorIndicator(initController: initController),
-                      if (widget.showCaption)
-                        Align(
-                          alignment: Alignment.bottomCenter,
-                          child: Container(
-                            color: Colors.transparent,
-                            alignment: Alignment.center,
-                            height: 20,
-                            child: Text(
-                                _videoPlayerController.value.caption.text ??
-                                    '', overflow: TextOverflow.ellipsis,),
-                          ),
-                        ),
+                      
                       if (widget.useConnectionMonitor)
                         Builder(
                           builder: (c) =>
