@@ -15,6 +15,7 @@ import 'package:video_player/video_player.dart';
 
 import 'src/state/touch_notifier.dart';
 import 'src/utils/connectivity_manager.dart';
+import 'src/widgets/auto_orientation_builder.dart';
 import 'src/widgets/brightness_control.dart';
 import 'src/widgets/error_indicator.dart';
 import 'src/widgets/playpause_button.dart';
@@ -26,6 +27,11 @@ const IS_DEBUG_MODE = kDebugMode;
 
 enum VerticalDragType { voulme, brightness, none }
 
+enum VideoPlayermode {
+  auto,
+  normal,
+}
+
 enum VerticalDragDirection { up, down }
 
 /// ```
@@ -36,7 +42,7 @@ class VidFlux extends StatefulWidget {
   final bool isFullscreen;
   final VideoPlayerController videoPlayerController;
 
-  final TouchNotifier _touchDetector;
+  final VideoPlayermode mode;
 
   /// a widget to show when the video is in error state
   final Widget errorWidget;
@@ -66,6 +72,7 @@ class VidFlux extends StatefulWidget {
 
   // orientations to use when entering fullscreen mode
   final List<DeviceOrientation> fullScreenOrientations;
+  final List<SystemUiOverlay> exitOverlays;
 
   // orientations to reset to  when exiting fullscreen mode
   final List<DeviceOrientation> exitOrientations;
@@ -85,8 +92,9 @@ class VidFlux extends StatefulWidget {
     this.usebrightnessControls = true,
     this.exitOrientations,
     this.showCaption = true,
-  })  : _touchDetector = TouchNotifier(),
-        super(key: key);
+    this.mode = VideoPlayermode.normal,
+    this.exitOverlays,
+  }) : super(key: key);
   @override
   VidFluxState createState() => VidFluxState();
 }
@@ -94,6 +102,7 @@ class VidFlux extends StatefulWidget {
 class VidFluxState extends State<VidFlux> {
   final GlobalKey<VolumeControllerState> _volumeKey = GlobalKey();
   final GlobalKey<BrightnessControllerState> _brightnessKey = GlobalKey();
+  TouchNotifier _touchDetector;
 
   VideoPlayerController _videoPlayerController;
   bool isLoading = true;
@@ -166,8 +175,8 @@ class VidFluxState extends State<VidFlux> {
       } else {
         Scaffold.of(context).showSnackBar(SnackBar(
           content: Text(
-              'An Error occured playing video, please check your internet connection...',
-              ),
+            'An Error occured playing video, please check your internet connection...',
+          ),
           backgroundColor: Colors.red,
         ));
         _stateNotifier.setLoading(false);
@@ -181,6 +190,7 @@ class VidFluxState extends State<VidFlux> {
 
   @override
   void initState() {
+    _touchDetector = TouchNotifier();
     retryInit = widget.retry;
     _videoPlayerController = widget.videoPlayerController;
     _stateNotifier = StateNotifier();
@@ -230,11 +240,11 @@ class VidFluxState extends State<VidFlux> {
   Widget build(BuildContext context) {
     return GestureDetector(
         onTap: () {
-          widget._touchDetector.toggleControl();
+          _touchDetector.toggleControl();
         },
         onDoubleTap: widget.pauseOnDoubleTap
             ? () {
-                widget._touchDetector.setValue(true);
+                _touchDetector.setValue(true);
                 if (_videoPlayerController?.value?.isPlaying ?? false) {
                   _videoPlayerController.pause();
                 } else
@@ -277,7 +287,7 @@ class VidFluxState extends State<VidFlux> {
             color: Colors.black,
             child: MultiProvider(
               providers: [
-                ChangeNotifierProvider(create: (_) => widget._touchDetector),
+                ChangeNotifierProvider(create: (_) => _touchDetector),
                 ChangeNotifierProvider(create: (_) => _stateNotifier),
                 ChangeNotifierProvider(create: (context) => _connectionValue)
               ],
@@ -304,7 +314,7 @@ class VidFluxState extends State<VidFlux> {
                       Center(
                           child: LoadinIndicator(
                               _videoPlayerController, widget.loadingIndicator)),
-                              if (widget.showCaption)
+                      if (widget.showCaption)
                         Align(
                           alignment: Alignment.bottomCenter,
                           child: Container(
@@ -312,8 +322,9 @@ class VidFluxState extends State<VidFlux> {
                             alignment: Alignment.center,
                             height: 20,
                             child: Text(
-                                _videoPlayerController.value.caption.text ??
-                                    '', overflow: TextOverflow.ellipsis,),
+                              _videoPlayerController.value.caption.text ?? '',
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
                         ),
                       if (widget.useVolumeControls)
@@ -326,6 +337,11 @@ class VidFluxState extends State<VidFlux> {
                         PlayPauseButton(
                           controller: _videoPlayerController,
                         ),
+                      if (widget.mode == VideoPlayermode.auto)
+                        AutoOrientationBuilder(
+                            enabled: widget.mode == VideoPlayermode.auto,
+                            exitOverlays: widget.exitOverlays,
+                            exitOrientations: widget.exitOrientations),
                       if (_videoPlayerController.value.initialized)
                         Container(
                             margin: EdgeInsets.only(bottom: 10),
@@ -334,6 +350,7 @@ class VidFluxState extends State<VidFlux> {
                               _videoPlayerController,
                               playerKey: widget.key,
                               loadingIndicator: widget.loadingIndicator,
+                              showToggle: widget.mode != VideoPlayermode.auto,
                               fullScreenOrientations:
                                   widget.fullScreenOrientations,
                               isFullScreen: widget.isFullscreen,
@@ -341,7 +358,6 @@ class VidFluxState extends State<VidFlux> {
                             )),
                       widget.errorWidget ??
                           ErrorIndicator(initController: initController),
-                      
                       if (widget.useConnectionMonitor)
                         Builder(
                           builder: (c) =>
@@ -356,8 +372,9 @@ class VidFluxState extends State<VidFlux> {
                                       alignment: Alignment.center,
                                       height: 20,
                                       child: Text(
-                                          'Internet connection ${state.value.isConnected ? 'restored' : 'lost, awaiting connection'}',
-                                           overflow: TextOverflow.ellipsis,),
+                                        'Internet connection ${state.value.isConnected ? 'restored' : 'lost, awaiting connection'}',
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
                                     ),
                                   )
                                 : SizedBox.shrink(),

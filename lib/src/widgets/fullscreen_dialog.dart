@@ -10,10 +10,11 @@ import 'package:vidflux/vidflux.dart';
 class FullScreenDialog extends StatefulWidget {
   final VideoPlayerController controller;
   final List<DeviceOrientation> orientations;
+  final List<SystemUiOverlay> exitOverlays;
   final List<DeviceOrientation> exitOrientations;
   final Widget loadingIndicator;
 
-  const FullScreenDialog({Key key, this.controller, this.orientations, this.exitOrientations, this.loadingIndicator }) : super(key: key);
+  const FullScreenDialog({Key key, this.controller, this.orientations, this.exitOrientations, this.loadingIndicator, this.exitOverlays }) : super(key: key);
   @override
   _FullScreenDialogState createState() => _FullScreenDialogState();
 }
@@ -34,6 +35,7 @@ class _FullScreenDialogState extends State<FullScreenDialog> {
   void dispose() {
     SystemChrome.restoreSystemUIOverlays();
      SystemChrome.setPreferredOrientations(widget.exitOrientations ?? [DeviceOrientation.portraitUp]);
+    SystemChrome.setEnabledSystemUIOverlays( widget.exitOverlays ?? [SystemUiOverlay.bottom, SystemUiOverlay.top]);
     super.dispose();
   }
 
@@ -53,6 +55,7 @@ class _FullScreenDialogState extends State<FullScreenDialog> {
         videoPlayerController: widget.controller,
         loadingIndicator: widget.loadingIndicator,
         isFullscreen: true,
+        mode: VideoPlayermode.normal,
       )),
     );
   }

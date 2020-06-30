@@ -1,6 +1,6 @@
 name: vidflux
-description: A new Flutter package project.
-version: 0.3.0
+description: A custom vido player package using video player
+version: 0.4.0
 author:
 homepage:
 
@@ -10,13 +10,14 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  connectivity: ^0.4.8+5
+  connectivity: ^0.4.8+6
+  native_device_orientation: ^0.3.0
   provider: ^4.1.3
   rxdart: ^0.24.1
   screen: ^0.0.5
-  video_player: ^0.10.11
+  video_player: ^0.10.11+1
   volume_watcher: ^1.1.0
-  equatable: ^1.1.1
+  equatable: ^1.2.0
 
 dev_dependencies:
   flutter_test:
