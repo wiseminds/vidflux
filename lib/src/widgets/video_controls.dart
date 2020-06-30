@@ -15,6 +15,7 @@ class VideoControls extends StatefulWidget {
   final VideoPlayerController controller;
   final Key playerKey;
   final bool isFullScreen;
+  final bool showToggle;
   final List<DeviceOrientation> fullScreenOrientations;
   final List<DeviceOrientation> exitOrientations;
   final Widget loadingIndicator;
@@ -25,7 +26,7 @@ class VideoControls extends StatefulWidget {
     this.playerKey,
     this.isFullScreen,
     this.fullScreenOrientations,
-    this.exitOrientations, this.loadingIndicator,
+    this.exitOrientations, this.loadingIndicator, this.showToggle = true,
   }) : super(key: key);
   @override
   _VideoControlsState createState() => _VideoControlsState();
@@ -125,7 +126,7 @@ class _VideoControlsState extends State<VideoControls>
                               .textTheme
                               .caption
                               .copyWith(color: Colors.white))),
-                  IconButton(
+                 widget.showToggle ? IconButton(
                       color: Colors.white,
                       icon: Icon(widget.isFullScreen
                           ? Icons.fullscreen_exit
@@ -151,6 +152,7 @@ class _VideoControlsState extends State<VideoControls>
                                     orientations: widget.fullScreenOrientations,
                                     exitOrientations: widget.exitOrientations,
                                   )))))
+                                  : SizedBox(width: 20,)
                 ],
               ),
             ),

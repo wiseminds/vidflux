@@ -40,33 +40,38 @@ final String url2 = 'https://bitmovin-a.akamaihd.net/content/playhouse-vr/mpds/1
     super.initState();
     _controller = VideoPlayerControlerProvider(VideoPlayerController.network(url));
      _video =  VidFlux(key: _key,
-             videoPlayerController: _controller.value, autoPlay: true, ) ;
+             videoPlayerController: _controller.value, autoPlay: true, mode: VideoPlayermode.auto, ) ;
   }
 Widget _video;
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.title),
-      ),
-      body: Column(
-          children: <Widget>[
-            _video
-          //  VidFlux(key: _controller.key,
-          //    videoPlayerController: _controller.value, autoPlay: true, )
-          ],
+    return OrientationBuilder(
+      builder: (BuildContext context, Orientation orientation)=>
+      orientation == Orientation.landscape ?
+       _video
+       : Scaffold(
+        appBar: AppBar(
+          title: Text(widget.title),
         ),
-      floatingActionButton: FloatingActionButton(onPressed: () {
-        setState(() {
-          _controller.value = VideoPlayerController.network(url2);
-            _video =  VidFlux(key: _controller.key,
-             videoPlayerController: _controller.value, autoPlay: true);
-        });
-        // _key.currentState.initState();
-        // _key.currentState.setController(VideoPlayerController.network(url));
-      },),
-     );
+        body: Column(
+            children: <Widget>[
+              _video
+            //  VidFlux(key: _controller.key,
+            //    videoPlayerController: _controller.value, autoPlay: true, )
+            ],
+          ),
+        floatingActionButton: FloatingActionButton(onPressed: () {
+          setState(() {
+            _controller.value = VideoPlayerController.network(url2);
+              _video =  VidFlux(key: _controller.key,mode: VideoPlayermode.auto,
+               videoPlayerController: _controller.value, autoPlay: true);
+          });
+          // _key.currentState.initState();
+          // _key.currentState.setController(VideoPlayerController.network(url));
+        },),
+       ),
+    );
   }
    
 }
