@@ -41,7 +41,7 @@ class _ScreenManagerState extends State<ScreenManagerWidget>
   @override
   void initState() {
     super.initState();
-    _subscription = ScreenManager.watchScreen( _screenListener, _watchDuration);
+    _subscription = ScreenManager.watchScreen(_screenListener, _watchDuration);
     WidgetsBinding.instance.addObserver(this);
   }
 
