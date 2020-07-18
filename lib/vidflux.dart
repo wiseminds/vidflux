@@ -64,6 +64,9 @@ class VidFlux extends StatefulWidget {
 
   final bool showCaption;
 
+
+  final bool lockOrientation;
+
   ///use swipe getsture to change volume
   final bool useVolumeControls;
 
@@ -93,7 +96,7 @@ class VidFlux extends StatefulWidget {
     this.exitOrientations,
     this.showCaption = true,
     this.mode = VideoPlayermode.normal,
-    this.exitOverlays,
+    this.exitOverlays, this.lockOrientation = false,
   }) : super(key: key);
   @override
   VidFluxState createState() => VidFluxState();
@@ -337,7 +340,7 @@ class VidFluxState extends State<VidFlux> {
                         PlayPauseButton(
                           controller: _videoPlayerController,
                         ),
-                      if (widget.mode == VideoPlayermode.auto)
+                      if (widget.mode == VideoPlayermode.auto && !widget.lockOrientation)
                         AutoOrientationBuilder(
                             enabled: widget.mode == VideoPlayermode.auto,
                             exitOverlays: widget.exitOverlays,
